@@ -1,0 +1,140 @@
+---
+title: "Predicting Unit Test Exam Scores From Practice Exams"
+subtitle: "Linear Regression Model Analysis"
+author: "Addison Pratt"
+date: "2022-11-21"
+output: 
+  html_document:
+    theme: flatly
+    code_folding: hide
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Background
+
+Students in Bio statistics 221B prior to taking a unit test are given a practice test to determine their comprehension of the material. Each student is given two attempts on each practice exam and are given an immediate score thereafter. For professors of MATH 221 classes here on campus, it would be interesting to know what the relationship is between the students first attempt practice exam score and their unit exam score. 
+
+It is important to use the first practice exam attempt score because it will show how much raw knowledge the students know prior to being told what they got wrong before they take it the second time. I am hoping to find some insights on how well they do on their first practice attempt will translate to how well the student performs on the unit exam. 
+
+The data that is used is collected from the grades of Bro.Amidan 221B Bio Statistics class in Canvas. The data collected consists of the first and second practice exam scores and the first and second unit exam scores. After collecting the data, I then calculated the average practice exam score for each student and the same for the unit exam. The new metrics that were created are in percentages and allows us to use more data to get a more accurate result in our test.
+
+Using linear regression we can find the correlation between the x and y variables and predict the scores.
+
+```{r, warning=FALSE, message=FALSE}
+#load in packages
+library(readr)
+library(tidyverse)
+library(dplyr)
+library(pander)
+library(plotly)
+library(gapminder)
+
+# load in the data
+Grades <- read_csv("Bio221DATA.csv")
+```
+
+## Hypothesis
+
+This analysis attempts to predict the average unit exam score using the average practice exam score. Using linear regression, the following model equation is written below.
+
+$$
+  \underbrace{Y_i}_\text{Exam Score} = \overbrace{\beta_0}^\text{y-int} + \overbrace{\beta_1}^\text{slope} \underbrace{X_i}_\text{Practice Exam Score} + \epsilon_i \quad \text{where} \ \epsilon_i \sim N(0, \sigma^2)
+$$
+
+
+The hypothesis for this test:
+
+$$\left.\begin{array}{ll}
+H_0: \beta_1 = 0 \\
+H_a: \beta_1 \neq 0
+\end{array}
+\right\} \ \text{Slope Hypotheses}\\
+a=0.05
+$$
+
+
+
+## Graphical Summary
+
+```{r, warning=FALSE}
+Grades <- Grades %>% 
+  filter(avg_score_practice > 50) %>% 
+  filter(avg_score_exam > 50) %>% 
+  select(avg_score_practice, avg_score_exam)
+Grades <- na.omit(Grades)
+
+ggplot(Grades, aes(x = avg_score_practice, y = avg_score_exam)) +
+geom_point() + geom_smooth(method = 'lm', formula = y~x, se = FALSE, size = 1, color = 'firebrick',
+linetype = 'solid') + ggtitle('How Well Will a Student Score on Exams Based on Practice Ones?') +
+labs(subtitle = "Student Average Exam Score by Average Practice Exam Scores", x = 'Average Practice Exam Score', y = 'Average Exam Score') + theme(plot.title=element_text(size=12), plot.subtitle = element_text(size= 10), axis.title = element_text(size=9))
+```
+
+Evaluating the graph with the regression line, we can see that the correlation between the average practice exam score and average exam score creates a strong positive trend.
+
+## Numerical Summary
+
+```{r, message=FALSE, warning=FALSE }
+
+grades.lm<- lm(avg_score_exam ~ avg_score_practice , data=Grades)
+
+cor <- Grades %>% 
+summarise(`correlation Between Exam and Practice Exam Scores (r)` = cor(avg_score_exam, avg_score_practice))
+
+pander(cor)
+pander(summary(Grades %>% select(avg_score_exam, avg_score_practice)))
+
+pander(grades.lm$coefficients)
+```
+
+Upon reviewing the numerical summary, we see the correlation between the x and y variables is $0.7252$ which means three is solid correlation between the exam score and practice. Some basic insights from the summary is that students on average do better on the unit exam than they do on the practice exam by about $1.2\%$. It is also interesting to note that the 25th percentile of students are scoring in the $78 - 80\%$ range for both exams.
+
+## Linear Model
+
+```{r, message=FALSE, warning=FALSE}
+
+grades.lm<- lm(avg_score_exam ~ avg_score_practice , data=Grades)
+pander(summary(grades.lm))
+```
+
+
+Below is the Linear Regression Model for predicting the 'Average Exam Score'
+
+$$
+  \underbrace{Y_i}_\text{Exam Score} = \overbrace{20.7}^\text{y-int} + \overbrace{0.7713}^\text{slope} \underbrace{X_i}_\text{Practice Exam Score} + \epsilon_i \quad \text{where} \ \epsilon_i \sim N(0, \sigma^2)
+$$
+
+#### Interpretation 
+
+The estimated value of the slope is $0.7713$ which shows that on average, students score higher on the practice exam than they do on the unit exam. This shows that the average actual exam score of the student is $77.13\%$ of the average practice exam score plus the baseline score of $20.7\%$. This tells use that students score less on average on their unit exams by about 23% compared to their average practice exam score. If the slope was 1 and the y-intercept was 0, then we could say whatever students score on average practice exams they will also average on the unit exams.
+
+
+## Making Predictions Using Model
+
+Using the linear regression model, here are some predictions that can be made using various random practice test scores. 
+ 
+```{r, message=FALSE, warning=FALSE}
+c <- c(84,68,87,97,93,78,55,81)
+
+pander(c)
+pander(predict(grades.lm, data.frame(avg_score_practice=c)))
+```
+
+
+## Check Requirements
+
+```{r}
+par(mfrow=c(1,3))
+plot(grades.lm,which=1:2)
+plot(grades.lm$residuals)
+```
+
+Checking the requirements, things look pretty good for the requirements being met. In the left most chart it looks like we have decent variance across the board. In the qqplot, the residuals also look to have a normal distribution. In the right most there doesn't seem to be any patterns either. Therefore, we can conclude the data meets the requirements and the regression model is valid.
+
+## Conclusion
+
+Analyzing the results from linear regression test, we obtained a p-value of $1.805e-11$, which means we can reject the null hypothesis and have sufficient evidence to conclude that the slope isn't zero. Therefore, we can say that student practice exam scores affect the average unit exam scores.
+It was interesting to note, that the class average of the practice exams and unit exams were very similar. This makes sense since the practice exam is similar to the actual one generally. Based on the results of the analysis, we can draw insights that if a student does very well on the practice exams, they will do very well on the actual unit exams as well. For future research, it would be interesting to take the times of when the students take the unit test and see how it correlates to their score.
